@@ -12,6 +12,9 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder; // Ya l
 import org.springframework.security.crypto.password.PasswordEncoder; // Ya lo tienes en Application
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import com.usersystem.sistemausuariosbackend.security.JwtAuthEntryPoint; // Importa esto
+import com.usersystem.sistemausuariosbackend.security.JwtAuthFilter;     // Importa esto
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter; // Importa esto
 
 
 @Configuration // Indica que esta clase contiene configuraciones de Spring
@@ -20,21 +23,30 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class WebSecurityConfig {
 
     // Aquí inyectaremos los componentes JWT que crearemos después
+    private final JwtAuthEntryPoint unauthorizedHandler; // Inyecta el punto de entrada
+    private final JwtAuthFilter jwtAuthFilter; // Inyecta el filtro JWT
+
+    // Constructor para inyección de dependencias
+    public WebSecurityConfig(JwtAuthEntryPoint unauthorizedHandler, JwtAuthFilter jwtAuthFilter) {
+        this.unauthorizedHandler = unauthorizedHandler;
+        this.jwtAuthFilter = jwtAuthFilter;
+    }
 
     // Este bean define la cadena de filtros de seguridad HTTP
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(csrf -> csrf.disable()) // Deshabilitar CSRF para APIs REST (ya que usamos JWT)
-                .cors(cors -> {}) // Permitir configuración de CORS (Cross-Origin Resource Sharing)
+                .csrf(csrf -> csrf.disable()) // Deshabilitar CSRF para APIs REST
+                .exceptionHandling(exception -> exception.authenticationEntryPoint(unauthorizedHandler)) // Configurar el manejador de errores de autenticación
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // No usar sesiones HTTP
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers("/api/auth/**").permitAll() // Permitir acceso sin autenticación a endpoints de autenticación
+                        .requestMatchers("/api/auth/**").permitAll() // Permitir acceso sin autenticación a /api/auth/**
                         .anyRequest().authenticated() // Cualquier otra petición requiere autenticación
-                )
-                .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS) // No usar sesiones HTTP (JWT es stateless)
                 );
-        // Aquí se añadirán los filtros JWT que crearemos más tarde
+
+        // Añadir el filtro JWT antes del filtro de autenticación de usuario/contraseña de Spring Security
+        http.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+
         return http.build();
     }
 
