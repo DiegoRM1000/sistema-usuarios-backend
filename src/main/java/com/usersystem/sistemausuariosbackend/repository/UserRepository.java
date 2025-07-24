@@ -8,7 +8,7 @@ import java.util.Optional; // Para manejar resultados que pueden o no existir
 
 @Repository // Le dice a Spring que esta interfaz es un componente de repositorio
 public interface UserRepository extends JpaRepository<User, Long> {
-    // Spring Data JPA generará automáticamente la implementación de este método
+    // Spring Data JPA generará automáticamente la implementación de este metodo
     Optional<User> findByUsername(String username); // Buscar usuario por nombre de usuario
 
     // Buscar usuario por email
