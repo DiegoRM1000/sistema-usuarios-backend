@@ -17,6 +17,7 @@ import com.usersystem.sistemausuariosbackend.security.JwtAuthFilter;     // Impo
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter; // Importa esto
 
 
+
 @Configuration // Indica que esta clase contiene configuraciones de Spring
 @EnableWebSecurity // Habilita la seguridad web de Spring
 @EnableMethodSecurity // Habilita la seguridad a nivel de métodos (ej. @PreAuthorize)
@@ -42,6 +43,10 @@ public class WebSecurityConfig {
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/api/auth/**").permitAll() // Permitir acceso sin autenticación a /api/auth/**
                         .anyRequest().authenticated() // Cualquier otra petición requiere autenticación
+                        // Cuando estés listo para que solo el admin registre
+                        //.requestMatchers("/api/auth/login").permitAll()
+                        //.requestMatchers("/api/auth/register").hasRole("ADMIN")
+                        //.anyRequest().authenticated()
                 );
 
         // Añadir el filtro JWT antes del filtro de autenticación de usuario/contraseña de Spring Security
