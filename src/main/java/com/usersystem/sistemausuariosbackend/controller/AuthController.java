@@ -117,4 +117,16 @@ public class AuthController {
         response.put("message", "User registered successfully!");
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
+    // Dentro de AuthController.java
+
+    @GetMapping("/test-protected")
+    public ResponseEntity<String> testProtected() {
+        return ResponseEntity.ok("Acceso concedido! Estás autenticado.");
+    }
+
+    @GetMapping("/test-admin")
+//@PreAuthorize("hasRole('ADMIN')") // Descomenta esta línea MÁS ADELANTE cuando quieras restringirlo
+    public ResponseEntity<String> testAdmin() {
+        return ResponseEntity.ok("Acceso concedido! Eres un administrador.");
+    }
 }

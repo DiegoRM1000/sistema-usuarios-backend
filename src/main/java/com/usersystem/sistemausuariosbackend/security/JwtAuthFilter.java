@@ -13,8 +13,17 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
+// --- IMPORTACIONES PARA LOGGING ---
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+// --- FIN IMPORTACIONES LOGGING ---
+
 @Component // Indica que esta clase es un componente de Spring
 public class JwtAuthFilter extends OncePerRequestFilter {
+
+    // --- INSTANCIA DEL LOGGER ---
+    private static final Logger log = LoggerFactory.getLogger(JwtAuthFilter.class);
+    // --- FIN INSTANCIA DEL LOGGER ---
 
     private final JwtUtil jwtUtil;
     private final UserDetailsServiceImpl userDetailsService;
@@ -33,26 +42,40 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         String token = null;
         String username = null;
 
+        log.info("Processing request for URI: {}", request.getRequestURI()); // Log de inicio
+
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            token = authHeader.substring(7); // Extrae el token (quita "Bearer ")
-            username = jwtUtil.extractUsername(token); // Extrae el username del token
+            token = authHeader.substring(7);
+            log.info("Authorization Header found. Token extracted.");
+            try {
+                username = jwtUtil.extractUsername(token);
+                log.info("Username extracted from token: {}", username);
+            } catch (Exception e) {
+                log.error("Error extracting username or invalid JWT token: {}", e.getMessage()); // Log de error si el token es inválido
+            }
+        } else {
+            log.warn("No Authorization header or does not start with Bearer for URI: {}", request.getRequestURI());
         }
 
-        // Si se extrajo un username y no hay autenticación actual en el contexto de seguridad
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            UserDetails userDetails = userDetailsService.loadUserByUsername(username); // Carga los detalles del usuario
+            log.info("Attempting to load UserDetails for username: {}", username);
+            UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
-            // Si el token es válido
             if (jwtUtil.validateToken(token, userDetails)) {
-                // Crea un objeto de autenticación
+                log.info("Token validated successfully for user: {}", username);
                 UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                         userDetails, null, userDetails.getAuthorities());
                 authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
-                // Establece la autenticación en el contexto de seguridad de Spring
                 SecurityContextHolder.getContext().setAuthentication(authToken);
+                log.info("User {} authenticated and set in SecurityContext.", username);
+            } else {
+                log.warn("Token validation failed for user: {}", username); // Log si la validación falla
             }
+        } else if (SecurityContextHolder.getContext().getAuthentication() != null) {
+            log.info("SecurityContext already has authentication for user: {}", SecurityContextHolder.getContext().getAuthentication().getName());
         }
-        filterChain.doFilter(request, response); // Continúa la cadena de filtros
+
+        filterChain.doFilter(request, response);
     }
 }

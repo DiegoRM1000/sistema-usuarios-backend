@@ -16,9 +16,17 @@ import java.util.Map;
 import java.util.function.Function;
 import org.springframework.security.core.GrantedAuthority; // <-- ¡AÑADE ESTA LÍNEA!
 import java.util.stream.Collectors;
+import org.slf4j.Logger; // Añade este import
+import org.slf4j.LoggerFactory; // Añade este import
+import io.jsonwebtoken.ExpiredJwtException; // Añade este import
+import io.jsonwebtoken.MalformedJwtException; // Añade este import
+import io.jsonwebtoken.SignatureException; // Añade este import
+import io.jsonwebtoken.UnsupportedJwtException; // Añade este import
 
 @Component // Indica que esta clase es un componente de Spring y será gestionada por el contenedor
 public class JwtUtil {
+
+    private static final Logger log = LoggerFactory.getLogger(JwtUtil.class); // Añade esto
 
     @Value("${jwt.secret}") // Inyecta el secreto JWT desde application.properties
     private String secret;
@@ -72,17 +80,45 @@ public class JwtUtil {
 
     // Extrae todos los claims del token
     private Claims extractAllClaims(String token) {
-        return Jwts.parser()
-                .setSigningKey(getSignKey())
-                .build()
-                .parseClaimsJws(token)
-                .getBody();
+        try {
+            return Jwts.parser()
+                    .setSigningKey(getSignKey())
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+        } catch (SignatureException ex) {
+            log.error("Invalid JWT signature: {}", ex.getMessage());
+            throw ex; // Re-lanza para que se maneje en el filtro o controlador
+        } catch (MalformedJwtException ex) {
+            log.error("Invalid JWT token: {}", ex.getMessage());
+            throw ex;
+        } catch (ExpiredJwtException ex) {
+            log.error("JWT token is expired: {}", ex.getMessage());
+            throw ex;
+        } catch (UnsupportedJwtException ex) {
+            log.error("JWT token is unsupported: {}", ex.getMessage());
+            throw ex;
+        } catch (IllegalArgumentException ex) {
+            log.error("JWT claims string is empty: {}", ex.getMessage());
+            throw ex;
+        }
     }
+
 
     // Valida si el token es válido para el usuario y si no ha expirado
     public Boolean validateToken(String token, UserDetails userDetails) {
-        final String username = extractUsername(token);
-        return (username.equals(userDetails.getUsername()) && !isTokenExpired(token));
+        try {
+            final String username = extractUsername(token);
+            boolean isValid = (username.equals(userDetails.getUsername()) && !isTokenExpired(token));
+            if (!isValid) {
+                log.warn("Token validation failed for user {}. Username match: {}, Token expired: {}",
+                        username, username.equals(userDetails.getUsername()), isTokenExpired(token));
+            }
+            return isValid;
+        } catch (Exception e) {
+            log.error("Error during token validation: {}", e.getMessage());
+            return false;
+        }
     }
 
     // Verifica si el token ha expirado
