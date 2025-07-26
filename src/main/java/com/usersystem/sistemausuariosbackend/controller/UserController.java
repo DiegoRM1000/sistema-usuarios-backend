@@ -5,6 +5,7 @@ import com.usersystem.sistemausuariosbackend.repository.UserRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize; // Importa esto
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.Authentication; // <-- ¡Añade esta importación!
 
 import java.util.List;
 import java.util.Optional;
@@ -48,4 +49,20 @@ public class UserController {
                     .orElseGet(() -> ResponseEntity.notFound().build());
     }
     */
+
+    // --- ¡AÑADE ESTE NUEVO ENDPOINT! ---
+    @GetMapping("/me")
+    public ResponseEntity<User> getMyProfile(Authentication authentication) {
+        // El objeto 'authentication' es inyectado automáticamente por Spring Security
+        // Contiene los detalles del usuario autenticado actualmente
+        String username = authentication.getName(); // Obtiene el nombre de usuario del principal autenticado
+
+        // Busca el usuario en la base de datos usando el nombre de usuario
+        Optional<User> user = userRepository.findByUsername(username);
+
+        // Si el usuario existe, lo devuelve; de lo contrario, devuelve 404 Not Found
+        return user.map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+    // --- FIN DEL NUEVO ENDPOINT ---
 }
